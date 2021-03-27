@@ -4,7 +4,7 @@ def format_candles(raw_data, candleType):
     Candle format =
         [Open_Time, Open, High, Low, Close, Volume, Close_Time, Quote_Asset_Volume, Num_trades]
     '''
-    if candleType == 'SPOT':
+    if candleType == 'REST':
         format_data = [
             [int(c[0]), 
             float(c[1]), 
@@ -17,7 +17,7 @@ def format_candles(raw_data, candleType):
             int(c[8])]
             for c in raw_data]
 
-        #format_data.reverse()
+        format_data.reverse()
 
     elif candleType == 'SOCK':
         c = raw_data
@@ -48,7 +48,7 @@ def format_depth(raw_data, candleType):
     Candle format =
         [upID, price, quantity]
     '''
-    if candleType == 'SPOT':
+    if candleType == 'REST':
         lastUpdateId = int(raw_data['lastUpdateId'])
 
         a = {}

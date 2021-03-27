@@ -11,7 +11,6 @@ import threading
 
 from . import formatter
 
-from . import rest_master
 from . import websocket_api
 
 ## sets up the socket BASE for binances socket API.
@@ -20,7 +19,7 @@ SOCKET_BASE = 'wss://stream.binance.com:9443'
 
 class Binance_SOCK:
 
-    def __init__(self):
+    def __init__(self, streams):
         '''
         Setup the connection and setup data containers and management variables for the socket.
         '''
@@ -32,7 +31,7 @@ class Binance_SOCK:
         self.socketRunning          = False
         self.socketBuffer           = {}
         self.ws                     = None
-        self.stream_names           = []
+        self.stream_names           = streams
         self.query                  = ''
         self.id_counter             = 0
 
@@ -43,6 +42,7 @@ class Binance_SOCK:
         self.live_and_historic_data = False
         self.candle_data            = {}
         self.book_data              = {}
+        self.reading_books          = False
 
         self.userDataStream_added   = False
         self.listen_key             = None
@@ -80,14 +80,27 @@ class Binance_SOCK:
 
     ## ------------------ [DATA_ACCESS_ENDPOINT] ------------------ ##
     def get_live_depths(self, symbol=None):
+        got_books = False
         return_books = {}
-        for key in self.book_data:
-            ask_Price_List = self._orderbook_sorter_algo(copy.deepcopy(self.book_data[key]['a']), 'ask')
-            bid_Price_List = self._orderbook_sorter_algo(copy.deepcopy(self.book_data[key]['b']), 'bid')
-            return_books.update({key:{'a':ask_Price_List, 'b':bid_Price_List}})
+
+        while not(got_books):
+            got_books = True
+            for key in self.book_data:
+                try:
+                    ask_Price_List = self._orderbook_sorter_algo(copy.deepcopy(self.book_data[key]['a']), 'ask')
+                    bid_Price_List = self._orderbook_sorter_algo(copy.deepcopy(self.book_data[key]['b']), 'bid')
+                    return_books.update({key:{'a':ask_Price_List, 'b':bid_Price_List}})
+                except RuntimeError as error:
+                    if error == 'dictionary changed size during iteration':
+                        print('dodged book error')
+                    got_books = False
+                    break
 
         if symbol:
+            if not symbol in return_books:
+                print(return_books)
             return(return_books[symbol])
+
         return(return_books)
 
     def get_live_candles(self, symbol=None):
@@ -365,14 +378,14 @@ class Binance_SOCK:
         return(self.id_counter)
 
 
-    def _on_Open(self):
+    def _on_Open(self, wsapp):
         '''
         This is called to manually open the websocket connection.
         '''
         logging.debug('[SOCKET_MASTER] Websocket Opened.')
 
 
-    def _on_Message(self, message):
+    def _on_Message(self, wsapp, message):
         '''
         This is used to handle any messages recived via the websocket.
         '''
@@ -426,28 +439,28 @@ class Binance_SOCK:
 
 
 
-    def _on_Ping(self, data):
+    def _on_Ping(self, wsapp, message):
         '''
         This is called to manually open the websocket connection.
         '''
         logging.debug('[SOCKET_MASTER] Websocket ping.')
 
 
-    def _on_Pong(self):
+    def _on_Pong(self, wsapp, message):
         '''
         This is called to manually open the websocket connection.
         '''
         logging.debug('[SOCKET_MASTER] Websocket pong.')
 
 
-    def _on_Error(self, error):
+    def _on_Error(self, wsapp, error):
         '''
         This is called when the socket recives an connection based error.
         '''
         logging.warning('[SOCKET_MASTER] Socket error: {0}'.format(error))
 
 
-    def _on_Close(self):
+    def _on_Close(self, wsapp):
         '''
         This is called for manually closing the websocket.
         '''
@@ -466,8 +479,8 @@ class Binance_SOCK:
 
     def _set_initial_depth(self, symbol, rest_api):
         try:
-            rest_data = rest_api.get_market_depth(symbol=symbol, limit=self.BASE_DEPTH_LIMIT)
-            hist_books = formatter.format_depth(rest_data, 'SPOT')
+            rest_data = rest_api.get_orderBook(symbol=symbol, limit=self.BASE_DEPTH_LIMIT)
+            hist_books = formatter.format_depth(rest_data, 'REST')
         except Exception as error:
             logging.critical('[SOCKET_MASTER] _set_initial_depth error {0}'.format(error))
             logging.warning('[SOCKET_MASTER] _set_initial_depth {0}'.format(rest_data))
@@ -475,6 +488,7 @@ class Binance_SOCK:
 
 
     def _update_candles(self, data):
+        #print("Update candle")
         rC = data['k']
 
         live_candle_data = formatter.format_candles(rC, 'SOCK')
