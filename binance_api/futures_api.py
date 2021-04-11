@@ -186,3 +186,28 @@ class get_crossCollat_interestHist:
     method = 'GET'
     endpoint = '/sapi/v1/futures/loan/interestHistory'
     security_type = 'USER_DATA'
+
+#Leverage information of symbols
+class get_leverage_brackets:
+    params = {'R':['timestamp'],
+              'O':['symbol', 'recvWindow']}
+    method = 'GET'
+    endpoint= '/fapi/v1/leverageBracket'
+    security_type = 'USER_DATA'
+    base = 'https://fapi.binance.com'
+
+#Info on futures candle
+class get_future_candles:
+    params = {'R':['symbol', 'interval'],
+            'O':['startTime', 'endTime', 'limit']}
+    method = 'GET'
+    endpoint = '/fapi/v1/klines'
+    security_type = 'None'
+    base = 'https://fapi.binance.com'
+
+class get_future_24h_ticker:
+    params = {'O': ['symbol']}
+    method = 'GET'
+    endpoint = '/fapi/v1/ticker/24hr'
+    base = 'https://fapi.binance.com'
+    security_type = 'None'

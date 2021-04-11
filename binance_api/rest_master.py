@@ -123,6 +123,12 @@ class Binance_REST:
         return(self.param_check(futures_api.get_collatRepay_result, kwargs))
     def get_crossCollat_interestHist(self, **kwargs):
         return(self.param_check(futures_api.get_crossCollat_interestHist, kwargs))
+    def get_leverage_brackets(self, **kwargs):
+        return(self.param_check(futures_api.get_leverage_brackets, kwargs))
+    def get_future_candles(self, **kwargs):
+        return(self.param_check(futures_api.get_future_candles, kwargs))
+    def get_future_24h_ticker(self, **kwargs):
+        return(self.param_check(futures_api.get_future_24h_ticker, kwargs))
 
     ## ------------------ [MARGIN_EXCLUSIVE] ------------------ ##
     def margin_transfer(self, **kwargs):
@@ -501,21 +507,25 @@ class Binance_REST:
         if api_info.security_type in REQUIRE_KEY or req_SIG:
             req_KEY = True
 
-        return(self.api_request(api_info.method, api_info.endpoint, params, req_KEY, req_SIG))
+        BASE = REST_BASE
+        if hasattr(api_info, 'base'):
+            BASE = api_info.base
+
+        return(self.api_request(api_info.method, api_info.endpoint, params, req_KEY, req_SIG, BASE))
 
 
-    def api_request(self, method, path, params, req_KEY, req_SIG):
+    def api_request(self, method, path, params, req_KEY, req_SIG, base_url):
         params_encoded = urlencode(sorted(params.items()))
 
         if req_SIG:
             query = '{0}&timestamp={1}'.format(params_encoded, int(time.time()*1000))
             signature = hmac.new(bytes(self.private_key.encode('utf-8')), (query).encode('utf-8'), sha256).hexdigest()
-            urlQuery = '{0}{1}?{2}&signature={3}'.format(REST_BASE, path, query, signature)
+            urlQuery = '{0}{1}?{2}&signature={3}'.format(base_url, path, query, signature)
         else:
             if params_encoded:
-                urlQuery = '{0}{1}?{2}'.format(REST_BASE, path, params_encoded)
+                urlQuery = '{0}{1}?{2}'.format(base_url, path, params_encoded)
             else:
-                urlQuery = '{0}{1}'.format(REST_BASE, path)
+                urlQuery = '{0}{1}'.format(base_url, path)
 
         if req_KEY:
             headers = {'X-MBX-APIKEY':self.public_key}

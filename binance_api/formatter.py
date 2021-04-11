@@ -6,7 +6,7 @@ def format_candles(raw_data, candleType):
     '''
     if candleType == 'REST':
         format_data = [
-            [int(c[0]), 
+            [int(c[0]),
             float(c[1]), 
             float(c[2]), 
             float(c[3]), 
@@ -40,6 +40,20 @@ def format_trades(raw_data):
     for t in raw_data:
         t.update({'side': 'BUY' if t['isBuyerMaker'] else 'SELL'})
         format_data.append(t)
+    return(format_data)
+
+def format_ticker(raw_data, tickerType):
+    if (tickerType == "SOCK"):
+        format_data ={
+            'volume': float(raw_data['q'])
+        }
+    else:
+        try:
+            format_data = {
+                'volume': float(raw_data['quoteVolume'])
+            }
+        except KeyError:
+            file = open("error.txt", "w")
     return(format_data)
 
 

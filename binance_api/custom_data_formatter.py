@@ -60,6 +60,11 @@ def get_custom_candles(kwargs):
     ''' '''
     candle_data = []
 
+    candle_function = rest_master.Binance_REST().get_candles
+
+    if (kwargs['isFuture']):
+        candle_function = rest_master.Binance_REST().get_candles
+
     ##
     interval_time_type = kwargs['interval'][-1]
 
@@ -104,20 +109,25 @@ def get_custom_candles(kwargs):
                 c_limit = total_candles_left
                 total_candles_left = 0
 
-        if c_end_time == 0:
-            candles = rest_master.Binance_REST().get_candles(
-                symbol=kwargs['symbol'], 
-                interval=best_interval, 
-                limit=c_limit)
-        else:
-            time.sleep(0.75)
-            candles = rest_master.Binance_REST().get_candles(
-                symbol=kwargs['symbol'], 
-                interval=best_interval, 
-                limit=c_limit, 
-                endTime=c_end_time)
-
-        c_end_time = candles[-1][0]-1
+        try:
+            if c_end_time == 0:
+                candles = candle_function(
+                    symbol=kwargs['symbol'], 
+                    interval=best_interval, 
+                    limit=c_limit)
+            else:
+                time.sleep(0.75)
+                candles = candle_function(
+                    symbol=kwargs['symbol'], 
+                    interval=best_interval, 
+                    limit=c_limit, 
+                    endTime=c_end_time)
+        except ValueError:
+            file = open("error.txt","w")
+            file.write(kwargs['symbol'])
+            file.close()
+            quit()
+        c_end_time = candles[-1][0] - 1
         candle_data = candle_data + candles
 
     ## To be used to build custom timeframes

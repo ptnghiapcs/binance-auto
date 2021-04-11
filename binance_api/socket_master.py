@@ -8,6 +8,7 @@ import hashlib
 import logging
 import websocket
 import threading
+import asyncio
 
 from . import formatter
 
@@ -15,11 +16,11 @@ from . import websocket_api
 
 ## sets up the socket BASE for binances socket API.
 SOCKET_BASE = 'wss://stream.binance.com:9443'
-
+FUTURE_BASE = 'wss://fstream.binance.com'
 
 class Binance_SOCK:
 
-    def __init__(self, streams):
+    def __init__(self, streams, isFuture=False):
         '''
         Setup the connection and setup data containers and management variables for the socket.
         '''
@@ -37,11 +38,13 @@ class Binance_SOCK:
 
         self.BASE_CANDLE_LIMIT      = 200
         self.BASE_DEPTH_LIMIT       = 20
+        self.isFuture               = isFuture
 
         ## For locally managed data.
         self.live_and_historic_data = False
         self.candle_data            = {}
         self.book_data              = {}
+        self.ticker_data            = {}
         self.reading_books          = False
 
         self.userDataStream_added   = False
@@ -50,15 +53,18 @@ class Binance_SOCK:
 
     def build_query(self):
         self.query = ''
+        url = SOCKET_BASE
+        if (self.isFuture):
+            url = FUTURE_BASE
 
         if len(self.stream_names) == 0 or self.stream_names == []:
             return('NO_STREAMS_SET')
 
         elif len(self.stream_names) == 1:
-            query = '{0}/ws/{1}'.format(SOCKET_BASE, self.stream_names[0])
+            query = '{0}/ws/{1}'.format(url, self.stream_names[0])
 
         else:
-            query = '{0}/stream?streams='.format(SOCKET_BASE)
+            query = '{0}/stream?streams='.format(url)
 
             for i, stream_name in enumerate(self.stream_names):
                 query += stream_name
@@ -108,6 +114,10 @@ class Binance_SOCK:
             return(self.candle_data[symbol])
         return(self.candle_data)
 
+    def get_live_ticker(self, symbol=None):
+        if (symbol):
+            return(self.ticker_data[symbol])
+        return(self.ticker_data)
 
     ## ------------------ [MANUAL_CALLS_EXCLUSIVE] ------------------ ##
     def subscribe_streams(self, **kwargs):
@@ -165,14 +175,16 @@ class Binance_SOCK:
     ## ------------------ [FULL_DATA_EXCLUSIVE] ------------------ ##
     def set_live_and_historic_combo(self, rest_api):
         if not(self.live_and_historic_data):
+            tasks = []
+            loop = asyncio.new_event_loop()
             for stream in self.stream_names:
                 symbol = stream.split('@')[0].upper()
                 if 'kline' in stream:
-                    self._set_initial_candles(symbol, stream.split('_')[1], rest_api)
+                    tasks.append(loop.create_task(self._set_initial_candles(symbol, stream.split('_')[1], rest_api)))
                 if 'depth' in stream:
-                    self._set_initial_depth(symbol, rest_api)
-                time.sleep(1)
-
+                    tasks.append(loop.create_task(self._set_initial_depth(symbol, rest_api)))
+                time.sleep(0.2)
+            loop.run_until_complete(asyncio.gather(*tasks))
             RETURN_MESSAGE = 'STARTED_HISTORIC_DATA'
         else:
             if self.candle_data != {}:
@@ -415,10 +427,10 @@ class Binance_SOCK:
                 if self.live_and_historic_data:
                     if data['e'] == 'kline':
                         self._update_candles(data)
-                            
                     elif data['e'] == 'depthUpdate':
                         self._update_depth(data)
-
+                    elif data['e'] == '24hrMiniTicker':
+                        self._update_ticker(data)
                     else:
                         if 'outboundAccountInfo' == data['e']:
                             self.socketBuffer.update({data['e']:data})
@@ -468,16 +480,16 @@ class Binance_SOCK:
         logging.info('[SOCKET_MASTER]: Socket closed.')
 
 
-    def _set_initial_candles(self, symbol, interval, rest_api):
+    async def _set_initial_candles(self, symbol, interval, rest_api):
         try:
-            hist_candles = rest_api.get_custom_candles(symbol=symbol, interval=interval, limit=self.BASE_CANDLE_LIMIT)
+            hist_candles = rest_api.get_custom_candles(symbol=symbol, interval=interval, limit=self.BASE_CANDLE_LIMIT, isFuture=self.isFuture)
         except Exception as error:
             logging.critical('[SOCKET_MASTER] _initial_candles error {0}'.format(error))
             logging.warning('[SOCKET_MASTER] _initial_candles {0}'.format(hist_candles))
         self.candle_data.update({symbol:hist_candles})
 
 
-    def _set_initial_depth(self, symbol, rest_api):
+    async def _set_initial_depth(self, symbol, rest_api):
         try:
             rest_data = rest_api.get_orderBook(symbol=symbol, limit=self.BASE_DEPTH_LIMIT)
             hist_books = formatter.format_depth(rest_data, 'REST')
@@ -486,9 +498,21 @@ class Binance_SOCK:
             logging.warning('[SOCKET_MASTER] _set_initial_depth {0}'.format(rest_data))
         self.book_data.update({symbol:hist_books})
 
+    async def _set_initial_ticker(self, symbol, rest_api):
+        try:
+            rest_data = rest_api.get_future_24h_ticker(symbol=symbol)
+            hist_ticker = formatter.format_ticker(rest_data, 'REST')
+        except Exception as error:
+            logging.critical('[SOCKET_MASTER] _initial_candles error {0}'.format(error))
+            logging.warning('[SOCKET_MASTER] _initial_candles {0}'.format(hist_ticker))
+        self.ticker_data.update({symbol:hist_ticker})
+
+    def _update_ticker(self, data):
+        ticker = formatter.format_ticker(data, 'SOCK')
+
+        self.ticker_data[data['s']] = ticker
 
     def _update_candles(self, data):
-        #print("Update candle")
         rC = data['k']
 
         live_candle_data = formatter.format_candles(rC, 'SOCK')
