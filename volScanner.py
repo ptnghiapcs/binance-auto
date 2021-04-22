@@ -3,12 +3,10 @@ import logging
 import sys
 import time
 import technical_indicators as TC
-import curses
 import json
 import math
-
-stdscr = curses.initscr()
-
+import datetime
+from collections import deque
 
 try:
     symbolFile = open("symbols.json", "r")
@@ -25,8 +23,9 @@ except IOError:
     quit()
 
 CONFIG = json.load(configFile)
-CONFIG["daily_percent"] = float(CONFIG["daily_percent"].replace("%",""))/100
-CONFIG["price_move_threshold"] = float(CONFIG["price_move_threshold"].replace("%",""))/100
+for trigger in CONFIG["triggers"]:
+    trigger["daily_percent"] = float(trigger["daily_percent"].replace("%",""))/100
+    trigger["price_move_threshold"] = float(trigger["price_move_threshold"].replace("%",""))/100
 
 #print(CONFIG)
 
@@ -41,8 +40,8 @@ else:
 KLINE_NAMES = [sym.lower() + "@kline_1m" for sym in SYMBOL_LIST]
 TICKER_NAMES = [sym.lower() + "@miniTicker" for sym in SYMBOL_LIST]
 
-STREAM_NAMES = KLINE_NAMES
-STREAM_NAMES.extend(TICKER_NAMES)
+# STREAM_NAMES = KLINE_NAMES
+# STREAM_NAMES.extend(TICKER_NAMES)
 
 class Symbol:
     def __init__(self):
@@ -51,69 +50,110 @@ class Symbol:
         self.lastPrice = 0
         self.spike = False
         self.lastVol = 0
-    def updateData(self, candles):
+    def updateData(self, currTick, prevVol, currVolume):
         self.currentTick = candles[0][0]
         self.lastVol = candles[1][7]
         if (self.spike):
             if (candles[1][7] < candles[2][7]):
                 self.spike = False
-    def setSpike(self):
+    def setSpike(self, prevVol, currVol):
         self.spike = True
 
 
 #logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-def main(stdscr):
+def main():
     symbols = {}
+    for i in range(len(CONFIG["triggers"])):
+        symbols[i] = {}
+        for sym in SYMBOL_LIST:
+            symbols[i][sym] = Symbol()
 
-    curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)
-    curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)
+    # curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)
+    # curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)
 
-    for sym in SYMBOL_LIST:
-        symbols[sym] = Symbol()
+    
 
-    socket = socket_master.Binance_SOCK(STREAM_NAMES, isFuture=True)
+    candle_socket = socket_master.Binance_SOCK(KLINE_NAMES, isFuture=True)
+    ticker_socket = socket_master.Binance_SOCK(TICKER_NAMES, isFuture=True)
     rest_api = rest_master.Binance_REST()
 
 
-    stdscr.addstr("Loading initial candles...\n")
-    stdscr.refresh()
+    
+    print("Loading initial candles...")
     start_time = time.time()
-    socket.set_live_and_historic_combo(rest_api)
-    stdscr.addstr("Loading finished in {:.4f} seconds , waiting for update\n".format(time.time() - start_time))
-    stdscr.refresh()
+    candle_socket.set_live_and_historic_combo(rest_api)
+    ticker_socket.set_live_and_historic_ticker(rest_api)
+    print("Loading finished in {:.4f} seconds , waiting for update".format(time.time() - start_time))
 
-    curses.halfdelay(10)
-    socket.start()
+
+    candle_socket.start()
+    ticker_socket.start()
 
     while(1):
-        data = socket.get_live_candles()
-        tickers = socket.get_live_ticker()
-        stdscr.move(0,0)
-        spikeCount = 0
+        data = candle_socket.get_live_candles()
+        tickers = ticker_socket.get_live_ticker()
+        outputs = {}
+        for i in range(len(CONFIG["triggers"])):
+            outputs[i] = []
+
+        currTime = datetime.datetime.now()
         for symbol in data:
+            if (symbol not in tickers):
+                continue
             candles = data[symbol]
             ticker = tickers[symbol]
-            currSymbol = symbols[symbol]
-            if (candles[0][0] > currSymbol.currentTick):
-                currSymbol.updateData(candles)
+            
             # if (currSymbol[0][5] 
-            degree = math.degrees(math.atan(candles[0][7]/candles[1][7] - 1))
-            dayPercent = candles[0][7] / ticker['volume']
-            priceMovment = abs(candles[0][4] - candles[0][1]) / candles[0][1]
-            if ((degree >= CONFIG["slope"] and  dayPercent >= CONFIG["daily_percent"] and priceMovment >= CONFIG["price_move_threshold"]) or (currSymbol.spike)):
-                spikeCount += 1
-                stdscr.addstr(symbol + " volume spike degree: {:.2f}, price move: {:.5f}% \n".format(degree, priceMovment*100), curses.color_pair(1))
-                currSymbol.setSpike()
-            elif not(CONFIG["use_full_symbols"]):
-                stdscr.addstr(symbol + " volume slope is: {:.2f}, daily percent is: {:.5f}%, price percent: {:.5f}% \n".format(degree, dayPercent*100, priceMovment*100),curses.color_pair(2))
-                #stdscr.addstr(symbol + "volumes {:.2f} {:.2f}; 24hr:{:.2f}; price {:.5f} {:.5   f} \n".format(candles[0][7], candles[1][7], ticker['volume'], candles[0][4], candles[0][1]),curses.color_pair(2))
+
+            for idx, trigger in enumerate(CONFIG["triggers"]):
+
+                currSymbol = symbols[idx][symbol]
+                if (candles[0][0] > currSymbol.currentTick):
+                    currSymbol.updateData(candles)
+
+                tf = trigger["time_frame"]
+                currVolume = 0
+                prevVolume = 0
+
+                for i in range(tf):
+                    currVolume += candles[i][7]
+                for i in range(tf, tf*2):
+                    prevVolume += candles[i][7]
+
+                if (prevVolume == 0) or (currVolume == 0):
+                    continue
+
+                openPrice = candles[tf-1][1]
+                currPrice = candles[0][4]
+                
+                try:
+                    degree = math.degrees(math.atan(currVolume/prevVolume - 1))
+                except ZeroDivisionError:
+                    print(currVolume, prevVolume)
+                    print(tf, tf*2)
+                    print(candles[:tf*2])
+                    quit()
+
+                dayPercent = currVolume / ticker['volume']
+                priceMovment = abs(currPrice - openPrice) / openPrice
+                if ((degree >= trigger["slope"] and  dayPercent >= trigger["daily_percent"] and priceMovment >= trigger["price_move_threshold"]) and (not currSymbol.spike)):
+                    output = currTime.strftime("%d/%m/%Y %H:%M") + " " + symbol + " degree: {:.2f}, price move: {:.5f}%, daily volL {:.5f}%".format(degree, priceMovment*100,dayPercent*100)
+                    print("Condition: "+ str(idx) +": "+output)
+                    outputs[idx].append(output+"\n")
+                    currSymbol.setSpike()
+                elif not(CONFIG["use_full_symbols"]):
+                    pass
+              
+        for i in range(len(CONFIG["triggers"])):
+            if (len(outputs[i])>0):
+                file = open("trigger_"+str(i)+"_output.txt", "a")
+                file.writelines(outputs[i])
+                file.close()
 
         # if (spikeCount == 0):
         #     stdscr.addstr("No spike found, current SUSHI price: {}, time {}".format(data['SUSHIUSDT'][0][4], data['SUSHIUSDT'][0][0]),curses.color_pair(2))
-        c = stdscr.getch()
-        if (c==ord('q')):
-            socket.stop()
-            quit()
-
-
-curses.wrapper(main)
+        # c = stdscr.getch()
+        # if (c==ord('q')):
+        #     candle_socket.stop()
+        #     quit()
+main()

@@ -9,13 +9,13 @@ candles = deque()
 start = 1546300800000 
 target = 1609459200000
 endTime = start
-file = open("eth_30min.json",'w')
+file = open("btc_1min.json",'w')
 
-while (start < target):
-    result = rest_api.get_candles(symbol='ETHUSDT', interval='30m', startTime=str(start),limit='1000')
+for i in range(1000):
+    result = rest_api.get_candles(symbol='BTCUSDT', interval='1m', startTime=str(start),limit='1000')
     candles.extendleft(result)
     endTime = result[-1][0] 
-    start = endTime + (30*60*1000)
+    start = endTime + (1*60*1000)
 
 
 # candles = rest_api.get_candles(symbol='BTCUSDT', interval='5m', endTime='160961580 0000')

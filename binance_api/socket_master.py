@@ -196,6 +196,33 @@ class Binance_SOCK:
 
         return(RETURN_MESSAGE)
 
+    def set_live_and_historic_ticker(self,rest_api):
+        if not(self.live_and_historic_data):
+            if (len(self.stream_names) > 40):
+                res = rest_api.get_future_24h_ticker()
+                for sym in res:
+                    hist = formatter.format_ticker(sym, "REST")
+                    self.ticker_data.update({sym["symbol"]:hist})
+                RETURN_MESSAGE = 'STARTED_HISTORIC_DATA'
+            else:
+                tasks = []
+                loop = asyncio.new_event_loop()
+                for stream in self.stream_names:
+                    symbol = stream.split('@')[0].upper()
+                    if 'ticker' in stream:
+                        tasks.append(loop.create_task(self._set_initial_ticker(symbol, rest_api)(symbol, stream.split('_')[1], rest_api)))
+                    time.sleep(0.2)
+                loop.run_until_complete(asyncio.gather(*tasks))
+            RETURN_MESSAGE = 'STARTED_HISTORIC_DATA'
+        else:
+            if self.candle_data != {}:
+                self.candle_data = {}
+
+            RETURN_MESSAGE = 'STOPPED_HISTORIC_DATA'
+
+        self.live_and_historic_data = not(self.live_and_historic_data)
+
+        return(RETURN_MESSAGE)        
 
     ## ------------------ [USER_DATA_STREAM_EXCLUSIVE] ------------------ ##
     def set_userDataStream(self, AUTHENTICATED_REST, user_data_stream_type, remove_stream=False):
