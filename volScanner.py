@@ -8,6 +8,10 @@ import math
 import datetime
 from collections import deque
 
+SECONDS_IN_MIN = 60
+FIRST_CHECK = 5 * SECONDS_IN_MIN
+SECOND_CHECK = 30 * SECONDS_IN_MIN
+
 try:
     symbolFile = open("symbols.json", "r")
 except IOError:
@@ -42,25 +46,59 @@ TICKER_NAMES = [sym.lower() + "@miniTicker" for sym in SYMBOL_LIST]
 
 # STREAM_NAMES = KLINE_NAMES
 # STREAM_NAMES.extend(TICKER_NAMES)
-
+##########################
 class Symbol:
     def __init__(self):
         self.Vol50EMA   = 0
         self.currentTick = 0
-        self.lastPrice = 0
+        self.prevVol = 0
         self.spike = False
-        self.lastVol = 0
+        self.currVol = 0
     def updateData(self, currTick, prevVol, currVolume):
-        self.currentTick = candles[0][0]
-        self.lastVol = candles[1][7]
+        self.currentTick = currTick
+        self.prevVol = self.currVol
         if (self.spike):
             if (candles[1][7] < candles[2][7]):
                 self.spike = False
     def setSpike(self, prevVol, currVol):
         self.spike = True
 
+###########################
+class PriceTrack:
+    def __init__(self, symbol, startPrice, timestamp, triggerIdx):
+        self.symbol = symbol
+        self.startPrice = startPrice
+        self.checkTime = timestamp
+        self.triggerIdx = triggerIdx
 
+##########################
+
+class EventHeap(object):
+    def __init__(self, initial=None, key=lambda x:x.checkTime):
+        self.key = key
+        self.index = 0
+        if initial:
+            self._data = [(key(item), i, item) for i, item in enumerate(initial)]
+            self.index = len(self._data)
+            heapq.heapify(self._data)
+        else:
+            self._data = []
+
+    def push(self, item):
+        heapq.heappush(self._data, (self.key(item), self.index, item))
+        self.index += 1
+
+    def pop(self):
+        return heapq.heappop(self._data)[2]
+    def peak(self):
+        return self._data[0][0]
+    def isEmpty(self):
+        return (len(self._data) == 0)
+
+#########################
 #logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+events = EventHeap()
+
 def main():
     symbols = {}
     for i in range(len(CONFIG["triggers"])):
@@ -97,6 +135,11 @@ def main():
             outputs[i] = []
 
         currTime = datetime.datetime.now()
+        currStamp = time.time()
+        if (not events.isEmpty()):
+            while(event.peak() <= currTime):
+                event = events.pop()
+
         for symbol in data:
             if (symbol not in tickers):
                 continue
