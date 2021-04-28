@@ -23,4 +23,6 @@ for symbolInfo in result:
     savedSymbol.append(symbol)
     print("Symbol: {}, Leverage: {}, MaxNotion: {}".format(symbolInfo["symbol"], symbolInfo["brackets"][0]["initialLeverage"], symbolInfo["brackets"][0]["notionalCap"]))
 
+print(len(savedSymbol))
+
 json.dump(savedSymbol, file)

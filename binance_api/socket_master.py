@@ -177,6 +177,7 @@ class Binance_SOCK:
         if not(self.live_and_historic_data):
             tasks = []
             loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             for stream in self.stream_names:
                 symbol = stream.split('@')[0].upper()
                 if 'kline' in stream:
@@ -207,6 +208,7 @@ class Binance_SOCK:
             else:
                 tasks = []
                 loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
                 for stream in self.stream_names:
                     symbol = stream.split('@')[0].upper()
                     if 'ticker' in stream:
