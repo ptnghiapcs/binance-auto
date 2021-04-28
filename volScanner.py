@@ -7,6 +7,7 @@ import json
 import math
 import datetime
 from collections import deque
+import heapq
 
 SECONDS_IN_MIN = 60
 FIRST_CHECK = 5 * SECONDS_IN_MIN
@@ -49,27 +50,37 @@ TICKER_NAMES = [sym.lower() + "@miniTicker" for sym in SYMBOL_LIST]
 ##########################
 class Symbol:
     def __init__(self):
-        self.Vol50EMA   = 0
         self.currentTick = 0
         self.prevVol = 0
         self.spike = False
         self.currVol = 0
-    def updateData(self, currTick, prevVol, currVolume):
+    def updateData(self, currTick, currVolume):
         self.currentTick = currTick
+        if (self.currVol < self.prevVol):
+            self.spike = False
         self.prevVol = self.currVol
-        if (self.spike):
-            if (candles[1][7] < candles[2][7]):
-                self.spike = False
-    def setSpike(self, prevVol, currVol):
+        self.currVol = currVolume
+    def updateCurrVol(self, newVol):
+        self.currVol = newVol
+    def setSpike(self):
         self.spike = True
 
 ###########################
 class PriceTrack:
-    def __init__(self, symbol, startPrice, timestamp, triggerIdx):
+    def __init__(self, symbol, startPrice, timestamp, triggerIdx, waitDuration):
         self.symbol = symbol
         self.startPrice = startPrice
-        self.checkTime = timestamp
+        self.waitDuration = waitDuration
+        duration = 0
+        if ('30' in waitDuration):
+            duration = SECOND_CHECK
+        else:
+            duration = FIRST_CHECK
+        self.checkTime = timestamp + duration
         self.triggerIdx = triggerIdx
+    def getStr(self, currPrice):
+        move_percent = (currPrice - self.startPrice) / self.startPrice * 100
+        return ("{} {} after spike, price moved: {:.5f}%".format(self.symbol, self.waitDuration, move_percent))
 
 ##########################
 
@@ -137,8 +148,11 @@ def main():
         currTime = datetime.datetime.now()
         currStamp = time.time()
         if (not events.isEmpty()):
-            while(event.peak() <= currTime):
+            while(events.peak() <= currStamp):
                 event = events.pop()
+                outStr = event.getStr(data[event.symbol][0][4])
+                outputs[event.triggerIdx].append(outStr + "\n")
+                print("Condition {} :".format(event.triggerIdx) + outStr)
 
         for symbol in data:
             if (symbol not in tickers):
@@ -151,8 +165,7 @@ def main():
             for idx, trigger in enumerate(CONFIG["triggers"]):
 
                 currSymbol = symbols[idx][symbol]
-                if (candles[0][0] > currSymbol.currentTick):
-                    currSymbol.updateData(candles)
+
 
                 tf = trigger["time_frame"]
                 currVolume = 0
@@ -166,6 +179,11 @@ def main():
                 if (prevVolume == 0) or (currVolume == 0):
                     continue
 
+                if (candles[0][0] > currSymbol.currentTick):
+                    currSymbol.updateData(candles[0][0], currVolume)
+                else:
+                    currSymbol.updateCurrVol(currVolume)
+
                 openPrice = candles[tf-1][1]
                 currPrice = candles[0][4]
                 
@@ -178,12 +196,17 @@ def main():
                     quit()
 
                 dayPercent = currVolume / ticker['volume']
-                priceMovment = abs(currPrice - openPrice) / openPrice
-                if ((degree >= trigger["slope"] and  dayPercent >= trigger["daily_percent"] and priceMovment >= trigger["price_move_threshold"]) and (not currSymbol.spike)):
-                    output = currTime.strftime("%d/%m/%Y %H:%M") + " " + symbol + " degree: {:.2f}, price move: {:.5f}%, daily volL {:.5f}%".format(degree, priceMovment*100,dayPercent*100)
+                priceMovment = (currPrice - openPrice) / openPrice
+                if ((degree >= trigger["slope"] and  dayPercent >= trigger["daily_percent"] and abs(priceMovment) >= trigger["price_move_threshold"]) and (not currSymbol.spike)):
+                    output = currTime.strftime("%d/%m/%Y %H:%M") + " " + symbol + " degree: {:.2f}, price move: {:.5f}%, daily vol {:.5f}%".format(degree, priceMovment*100,dayPercent*100)
                     print("Condition: "+ str(idx) +": "+output)
                     outputs[idx].append(output+"\n")
                     currSymbol.setSpike()
+
+                    five_min = PriceTrack(symbol, currPrice, currStamp, idx, "5 min")
+                    thirty_min = PriceTrack(symbol, currPrice, currStamp, idx, "30 min")
+                    events.push(five_min)
+                    events.push(thirty_min)
                 elif not(CONFIG["use_full_symbols"]):
                     pass
               
