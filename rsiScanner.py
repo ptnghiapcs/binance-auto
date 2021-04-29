@@ -38,11 +38,12 @@ class Trades:
         self.entry = entry
         self.side = side
         self.symbol = symbol
+        self.status = "OPEN"
         if (side == "LONG"):
-            self.sl = entry * 0.99
+            self.sl = entry * 0.95
             self.tp = entry * 1.01
         else:
-            self.sl = entry * 1.01
+            self.sl = entry * 1.05
             self.tp = entry * 0.99
     def checkClose(self, currPrice):
         if (self.side == "LONG"):
@@ -63,6 +64,21 @@ class Trades:
                 return True
             else:
                 return False
+    def forceClose(self,currPrice):
+        self.status = "CLOSED"
+        priceMove = ((currPrice - self.entry) / self.entry) * 100
+        if (self.entry > currPrice):
+            if (self.side == "LONG"):
+                print("{} LONG trade profit {}".format(symbol, priceMove))
+            else:
+                print("{} SHORT trade loss {}".format(symbol, priceMove))
+        else:
+            if (self.side == "LONG"):
+                print("{} LONG trade loss {}".format(symbol, priceMove))
+            else:
+                print("{} SHORT trade profit {}".format(symbol, priceMove))
+
+
 
 
 ######################
@@ -78,23 +94,35 @@ while(1):
     data = candle_socket.get_live_candles()
     newTrades = []
     for trade in trades:
-        if ( not trade.checkClose(data[trade.symbol][0][4])):
+        if (trade.status == "CLOSED"):
+            continue
+        if (not trade.checkClose(data[trade.symbol][0][4])):
             newTrades.append(trade)
         else:
-            cooldown[symbol] = 0
+            cooldown[trade.symbol] = 0
     trades = newTrades
     for symbol in data:
         candles = data[symbol]
         close = [candle[4] for candle in candles]
         rsi = TC.get_RSI(close)
-        if ((rsi[0] >= 85) and (cooldown[symbol]==0)):
+        if ((rsi[0] >= 85) and (candles[0][0] > cooldown[symbol])):
             print("{} RSI: {}".format(symbol, rsi[0]))
             trade = Trades(candles[0][4], "SHORT", symbol) 
             trades.append(trade)
-            cooldown[symbol] = 1
-        elif ((rsi[0] <= 15 )and (cooldown[symbol]==0)):
+            cooldown[symbol] = candles[0][0]
+        elif ((rsi[0] <= 15 )and (candles[0][0] > cooldown[symbol])):
             print("{} RSI: {}".format(symbol, rsi[0]))
             trade = Trades(candles[0][4], "LONG", symbol)
             trades.append(trade)
-            cooldown[symbol] = 1
+            cooldown[symbol] = candles[0][0]
+        elif (rsi[0] <= 35 and (cooldown[symbol] > 0)):
+            for trade in trades:
+                if (trade.symbol == symbol and trade.side == "SHORT"):
+                    trade.forceClose(candles[0][4])
+            cooldown[symbol] = 0
+        elif (rsi[0] <= 65 and (cooldown[symbol] > 0)):
+            for trade in trades:
+                if (trade.symbol == symbol and trade.side == "LONG"):
+                    trade.forceClose(candles[0][4])
+            cooldown[symbol] = 0
     time.sleep(0.1)

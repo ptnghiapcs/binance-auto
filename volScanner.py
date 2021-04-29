@@ -150,7 +150,7 @@ def main():
         if (not events.isEmpty()):
             while(events.peak() <= currStamp):  
                 event = events.pop()
-                outStr = currTime.strftime("%d/%m/%Y %H:%M") + event.getStr(data[event.symbol][0][4])
+                outStr = currTime.strftime("%d/%m/%Y %H:%M")+" "+ event.getStr(data[event.symbol][0][4])
                 outputs[event.triggerIdx].append(outStr + "\n")
                 print("Condition {} :".format(event.triggerIdx) + outStr)
 
