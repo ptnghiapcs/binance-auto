@@ -71,6 +71,9 @@ trades = []
 candle_socket.start()
 cooldown = {}
 
+for symbol in SYMBOL_LIST:
+    cooldown[symbol] = 0
+
 while(1):
     data = candle_socket.get_live_candles()
     newTrades = []
@@ -80,15 +83,20 @@ while(1):
     trades = newTrades
     for symbol in data:
         candles = data[symbol]
-        close = [candle[4] for candle in candles[:20]]
+        close = [candle[4] for candle in candles]
         rsi = TC.get_RSI(close)
-
-        if (rsi[1] >= 85):
+        if ((rsi[0] >= 85) and (cooldown[symbol]==0)):
             print("{} RSI: {}".format(symbol, rsi[0]))
-            trade = Trades(candles[0][4], "SHORT", symbol)  
+            trade = Trades(candles[0][4], "SHORT", symbol) 
             trades.append(trade)
-        elif (rsi[1] <= 15):
+            cooldown[symbol] = 1
+            print(cooldown[symbol])
+        elif ((rsi[0] <= 15 )and (cooldown[symbol]==0)):
             print("{} RSI: {}".format(symbol, rsi[0]))
             trade = Trades(candles[0][4], "LONG", symbol)
             trades.append(trade)
+            cooldown[symbol] = 1
+            print(cooldown[symbol])
+        else:
+            cooldown[symbol] = 0
     time.sleep(0.1)

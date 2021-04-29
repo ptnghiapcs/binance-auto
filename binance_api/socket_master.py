@@ -213,7 +213,7 @@ class Binance_SOCK:
                     symbol = stream.split('@')[0].upper()
                     if 'ticker' in stream:
                         tasks.append(loop.create_task(self._set_initial_ticker(symbol, rest_api)(symbol, stream.split('_')[1], rest_api)))
-                    time.sleep(0.2)
+                    time.sleep(0.1)
                 loop.run_until_complete(asyncio.gather(*tasks))
             RETURN_MESSAGE = 'STARTED_HISTORIC_DATA'
         else:

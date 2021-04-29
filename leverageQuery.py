@@ -15,7 +15,7 @@ savedSymbol = []
 file = open("symbols.json", "w")
 
 for symbolInfo in result:
-    if ("_" in symbolInfo["symbol"] or "DOTECOUSDT" == symbolInfo["symbol"] or "DEFIUSDT" == symbolInfo["symbol"]):
+    if ("_" in symbolInfo["symbol"] or "DOTECOUSDT" == symbolInfo["symbol"] or "DEFIUSDT" == symbolInfo["symbol"] or "LENDUSDT" == symbolInfo["symbol"] or "BTCSTUSDT" == symbolInfo["symbol"]):
         continue
     symbol = {}
     symbol["symbol"] = symbolInfo["symbol"]
