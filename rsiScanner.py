@@ -80,6 +80,8 @@ while(1):
     for trade in trades:
         if ( not trade.checkClose(data[trade.symbol][0][4])):
             newTrades.append(trade)
+        else:
+            cooldown[symbol] = 0
     trades = newTrades
     for symbol in data:
         candles = data[symbol]
@@ -90,13 +92,9 @@ while(1):
             trade = Trades(candles[0][4], "SHORT", symbol) 
             trades.append(trade)
             cooldown[symbol] = 1
-            print(cooldown[symbol])
         elif ((rsi[0] <= 15 )and (cooldown[symbol]==0)):
             print("{} RSI: {}".format(symbol, rsi[0]))
             trade = Trades(candles[0][4], "LONG", symbol)
             trades.append(trade)
             cooldown[symbol] = 1
-            print(cooldown[symbol])
-        else:
-            cooldown[symbol] = 0
     time.sleep(0.1)
