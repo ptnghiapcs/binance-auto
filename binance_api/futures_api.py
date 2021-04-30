@@ -205,6 +205,14 @@ class get_future_candles:
     security_type = 'None'
     base = 'https://fapi.binance.com'
 
+class post_multiple_orders:
+    params = {'R':['batchOrders', 'timestamp'],
+            'O':['recvWindow']}
+    method = 'POST'
+    endpoint = '/fapi/v1/batchOrders'
+    security_type = 'TRADE'
+    base = 'https://fapi.binance.com'
+
 class get_future_24h_ticker:
     params = {'O': ['symbol']}
     method = 'GET'
