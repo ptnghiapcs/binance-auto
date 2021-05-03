@@ -37,7 +37,7 @@ class Binance_SOCK:
         self.id_counter             = 0
 
         self.BASE_CANDLE_LIMIT      = 200
-        self.BASE_DEPTH_LIMIT       = 20
+        self.BASE_DEPTH_LIMIT       = 10
         self.isFuture               = isFuture
 
         ## For locally managed data.
@@ -45,6 +45,7 @@ class Binance_SOCK:
         self.candle_data            = {}
         self.book_data              = {}
         self.ticker_data            = {}
+        self.mark_price             = {}
         self.reading_books          = False
 
         self.userDataStream_added   = False
@@ -118,6 +119,11 @@ class Binance_SOCK:
         if (symbol):
             return(self.ticker_data[symbol])
         return(self.ticker_data)
+
+    def get_live_markPrice(self, symbol=None):
+        if symbol:
+            return (self.mark_price[symbol])
+        return (self.mark_price)
 
     ## ------------------ [MANUAL_CALLS_EXCLUSIVE] ------------------ ##
     def subscribe_streams(self, **kwargs):
@@ -225,6 +231,34 @@ class Binance_SOCK:
         self.live_and_historic_data = not(self.live_and_historic_data)
 
         return(RETURN_MESSAGE)        
+
+    def set_live_and_historic_markPrice(self, rest_api):
+        if not(self.live_and_historic_data):
+            if (len(self.stream_names) > 40):
+                res = rest_api.get_mark_price()
+                for sym in res:
+                    self.ticker_data.update({sym["symbol"]:sym["markPrice"]})
+                RETURN_MESSAGE = 'STARTED_HISTORIC_DATA'
+            else:
+                tasks = []
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                for stream in self.stream_names:
+                    symbol = stream.split('@')[0].upper()
+                    if 'ticker' in stream:
+                        tasks.append(loop.create_task(self._set_initial_ticker(symbol, rest_api)(symbol, stream.split('_')[1], rest_api)))
+                    time.sleep(0.1)
+                loop.run_until_complete(asyncio.gather(*tasks))
+            RETURN_MESSAGE = 'STARTED_HISTORIC_DATA'
+        else:
+            if self.candle_data != {}:
+                self.candle_data = {}
+
+            RETURN_MESSAGE = 'STOPPED_HISTORIC_DATA'
+
+        self.live_and_historic_data = not(self.live_and_historic_data)
+
+        return(RETURN_MESSAGE)
 
     ## ------------------ [USER_DATA_STREAM_EXCLUSIVE] ------------------ ##
     def set_userDataStream(self, AUTHENTICATED_REST, user_data_stream_type, remove_stream=False):
@@ -460,6 +494,8 @@ class Binance_SOCK:
                         self._update_depth(data)
                     elif data['e'] == '24hrMiniTicker':
                         self._update_ticker(data)
+                    elif data['e'] == 'markPriceUpdate':
+                        self.mark_price[data['s']] = data['p']
                     else:
                         if 'outboundAccountInfo' == data['e']:
                             self.socketBuffer.update({data['e']:data})
@@ -520,7 +556,10 @@ class Binance_SOCK:
 
     async def _set_initial_depth(self, symbol, rest_api):
         try:
-            rest_data = rest_api.get_orderBook(symbol=symbol, limit=self.BASE_DEPTH_LIMIT)
+            if (self.isFuture):
+                rest_data = rest_api.get_future_orderBook(symbol=symbol, limit=self.BASE_DEPTH_LIMIT)
+            else:
+                rest_data = rest_api.get_orderBook(symbol=symbol, limit=self.BASE_DEPTH_LIMIT)
             hist_books = formatter.format_depth(rest_data, 'REST')
         except Exception as error:
             logging.critical('[SOCKET_MASTER] _set_initial_depth error {0}'.format(error))
@@ -535,6 +574,13 @@ class Binance_SOCK:
             logging.critical('[SOCKET_MASTER] _initial_candles error {0}'.format(error))
             logging.warning('[SOCKET_MASTER] _initial_candles {0}'.format(hist_ticker))
         self.ticker_data.update({symbol:hist_ticker})
+
+    async def _set_initial_premium(self, symbol, rest_api):
+        try:
+            rest_data = rest_api.get_mark_price(symbol=symbol)
+        except Exception as error:
+            logging.critical('[SOCKET_MASTER] _initial_candles error {0}'.format(error))
+        self.ticker_data.update({symbol:rest_data["markPrice"]})
 
     def _update_ticker(self, data):
         ticker = formatter.format_ticker(data, 'SOCK')

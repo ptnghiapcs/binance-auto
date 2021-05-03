@@ -129,6 +129,10 @@ class Binance_REST:
         return(self.param_check(futures_api.get_future_candles, kwargs))
     def get_future_24h_ticker(self, **kwargs):
         return(self.param_check(futures_api.get_future_24h_ticker, kwargs))
+    def get_future_orderBook(self,**kwargs):
+        return(self.param_check(futures_api.get_future_depth, kwargs))
+    def get_mark_price(self, **kwargs):
+        return(self.param_check(futures_api.get_mark_price, kwargs))
 
     ## ------------------ [MARGIN_EXCLUSIVE] ------------------ ##
     def margin_transfer(self, **kwargs):

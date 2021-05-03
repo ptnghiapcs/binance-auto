@@ -219,3 +219,18 @@ class get_future_24h_ticker:
     endpoint = '/fapi/v1/ticker/24hr'
     base = 'https://fapi.binance.com'
     security_type = 'None'
+
+class get_future_depth:
+    params = {'R':['symbol'],
+            'O':['limit']}
+    method = 'GET'
+    endpoint = '/fapi/v1/depth'
+    security_type = 'None'
+    base = 'https://fapi.binance.com'
+
+class get_mark_price:
+    params = {'O': ['symbol']}
+    method = 'GET'
+    endpoint = '/fapi/v1/premiumIndex'
+    base = 'https://fapi.binance.com'
+    security_type = 'None'

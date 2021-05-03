@@ -13,7 +13,7 @@ def createTP(symbol, side, amount, time, tp):
     order["stopPrice"] = tp
 
 
-def createSL(symbol, side, amount, sl):
+def createSL(symbol, side, amount, time, sl):
     order={}
     order["symbol"] = symbol
     order["quantity"] = amount

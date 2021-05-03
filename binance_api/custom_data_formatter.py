@@ -63,7 +63,7 @@ def get_custom_candles(kwargs):
     candle_function = rest_master.Binance_REST().get_candles
 
     if (kwargs['isFuture']):
-        candle_function = rest_master.Binance_REST().get_candles
+        candle_function = rest_master.Binance_REST().get_future_candles
 
     ##
     interval_time_type = kwargs['interval'][-1]
