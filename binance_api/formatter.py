@@ -42,6 +42,19 @@ def format_trades(raw_data):
         format_data.append(t)
     return(format_data)
 
+def format_markPrice(raw_data, type):
+    if (type == "REST"):
+        format_data = {
+            'time': int(raw_data['time']),
+            'markPrice': float(raw_data["markPrice"])
+        }
+    else:
+        format_data = {
+            'time': int(raw_data['T']),
+            'markPrice': float(raw_data["p"])
+        }
+    return (format_data)
+
 def format_ticker(raw_data, tickerType):
     if (tickerType == "SOCK"):
         format_data ={

@@ -126,7 +126,7 @@ class Binance_REST:
     def get_leverage_brackets(self, **kwargs):
         return(self.param_check(futures_api.get_leverage_brackets, kwargs))
     def get_future_candles(self, **kwargs):
-        return(self.param_check(futures_api.get_future_candles, kwargs))
+        return(formatter.format_candles(self.param_check(futures_api.get_future_candles, kwargs), 'REST'))
     def get_future_24h_ticker(self, **kwargs):
         return(self.param_check(futures_api.get_future_24h_ticker, kwargs))
     def get_future_orderBook(self,**kwargs):

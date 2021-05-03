@@ -203,6 +203,28 @@ class Binance_SOCK:
 
         return(RETURN_MESSAGE)
 
+    def set_live_and_historic_depth(self, rest_api):
+        if not(self.live_and_historic_data):
+            tasks = []
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            for stream in self.stream_names:
+                symbol = stream.split('@')[0].upper()
+                if 'depth' in stream:
+                    tasks.append(loop.create_task(self._set_initial_depth(symbol, rest_api)))
+                time.sleep(0.1)
+            loop.run_until_complete(asyncio.gather(*tasks))
+            RETURN_MESSAGE = 'STARTED_HISTORIC_DATA'
+        else:
+            if self.book_data != {}:
+                self.book_data = {}
+
+            RETURN_MESSAGE = 'STOPPED_HISTORIC_DATA'
+
+        self.live_and_historic_data = not(self.live_and_historic_data)
+
+        return(RETURN_MESSAGE)
+
     def set_live_and_historic_ticker(self,rest_api):
         if not(self.live_and_historic_data):
             if (len(self.stream_names) > 40):
@@ -223,8 +245,8 @@ class Binance_SOCK:
                 loop.run_until_complete(asyncio.gather(*tasks))
             RETURN_MESSAGE = 'STARTED_HISTORIC_DATA'
         else:
-            if self.candle_data != {}:
-                self.candle_data = {}
+            if self.ticker_data != {}:
+                self.ticker_data = {}
 
             RETURN_MESSAGE = 'STOPPED_HISTORIC_DATA'
 
@@ -237,7 +259,8 @@ class Binance_SOCK:
             if (len(self.stream_names) > 40):
                 res = rest_api.get_mark_price()
                 for sym in res:
-                    self.ticker_data.update({sym["symbol"]:sym["markPrice"]})
+                    data = formatter.format_markPrice(sym,"REST")
+                    self.ticker_data.update({sym["symbol"]:data})
                 RETURN_MESSAGE = 'STARTED_HISTORIC_DATA'
             else:
                 tasks = []
@@ -495,7 +518,8 @@ class Binance_SOCK:
                     elif data['e'] == '24hrMiniTicker':
                         self._update_ticker(data)
                     elif data['e'] == 'markPriceUpdate':
-                        self.mark_price[data['s']] = data['p']
+                        formatted = formatter.format_markPrice(data, 'SOCK')
+                        self.mark_price[data['s']] = formatted
                     else:
                         if 'outboundAccountInfo' == data['e']:
                             self.socketBuffer.update({data['e']:data})

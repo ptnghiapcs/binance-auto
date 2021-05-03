@@ -23,8 +23,6 @@ KLINE_NAMES = [sym.lower() + "@kline_1m" for sym in SYMBOL_LIST]
 DEPTH_NAMES = [sym.lower() + "@depth10@100ms" for sym in SYMBOL_LIST]
 MARK_NAMES =  [sym.lower() + "@markPrice@1s" for sym in SYMBOL_LIST]
 
-DEPTH_NAMES.extend(MARK_NAMES)
-
 candle_socket = socket_master.Binance_SOCK(KLINE_NAMES, isFuture=True)
 rest_api = rest_master.Binance_REST()
 
@@ -37,10 +35,11 @@ print("Loading finished in {:.4f} seconds , waiting for update".format(time.time
 
 
 depth_socket = socket_master.Binance_SOCK(DEPTH_NAMES, isFuture=True)
+mark_socket = socket_master.Binance_SOCK(MARK_NAMES, isFuture=True)
 print("Loading initial depth...")
 start_time = time.time()
-depth_socket.set_live_and_historic_combo(rest_api)
-depth_socket.set_live_and_historic_markPrice(rest_api)
+depth_socket.set_live_and_historic_depth(rest_api)
+mark_socket.set_live_and_historic_markPrice(rest_api)
 print("Loading finished in {:.4f} seconds , waiting for update".format(time.time() - start_time))
 
 
@@ -98,6 +97,8 @@ class Trades:
 
 trades = []
 candle_socket.start()
+depth_socket.start()
+mark_socket.start()
 cooldown = {}
 
 for symbol in SYMBOL_LIST:
@@ -105,7 +106,7 @@ for symbol in SYMBOL_LIST:
 
 while(1):
     data = candle_socket.get_live_candles()
-    markPrice = depth_socket.get_live_markPrice()
+    markPrice = mark_socket.get_live_markPrice()
 
     newTrades = []
 
@@ -115,7 +116,7 @@ while(1):
     for trade in trades:
         if (trade.status == "CLOSED"):
             continue
-        if (not trade.checkClose(markPrice[trade.symbol])):
+        if ((markPrice[trade.symbol]["time"] > trade.enterTime) and (not trade.checkClose(markPrice[trade.symbol]["markPrice"]))):
             newTrades.append(trade)
             cooldown[trade.symbol] = trade.enterTime
 
@@ -126,22 +127,22 @@ while(1):
         rsi = TC.get_RSI(close)
         if ((rsi[0] >= 85 and rsi[1] >= 85) and (candles[0][0] > cooldown[symbol])):
             depth = depth_socket.get_live_depths(symbol=symbol)
-            trade = Trades(depth['b'][0][1], "SHORT", symbol, candles[0][0]) 
+            trade = Trades(depth['b'][0][0], "SHORT", symbol, candles[0][0]) 
             print("{} RSI: {}, enter SHORT, entry: {}".format(symbol, rsi[0], trade.entry))
             trades.append(trade)
             cooldown[symbol] = candles[0][0]
         elif ((rsi[0] <= 15 and rsi[1] <=15) and (candles[0][0] > cooldown[symbol])):
             depth = depth_socket.get_live_depths(symbol=symbol)
-            trade = Trades(depth['a'][0][1], "LONG", symbol, candles[0][0])
+            trade = Trades(depth['a'][0][0], "LONG", symbol, candles[0][0])
             print("{} RSI: {}, enter LONG, entry: {}".format(symbol, rsi[0], trade.entry))
             trades.append(trade)
             cooldown[symbol] = candles[0][0]
         elif (rsi[1] <= 65 and (cooldown[symbol] > 0)):
             for trade in trades:
                 if (trade.symbol == symbol and trade.side == "SHORT"):
-                    trade.forceClose(markPrice[symbol])
+                    trade.forceClose(markPrice[symbol]["markPrice"])
         elif (rsi[1] >= 35 and (cooldown[symbol] > 0)):
             for trade in trades:
                 if (trade.symbol == symbol and trade.side == "LONG"):
-                    trade.forceClose(markPrice[symbol])
+                    trade.forceClose(markPrice[symbol]["markPrice"])
     time.sleep(0.1)
