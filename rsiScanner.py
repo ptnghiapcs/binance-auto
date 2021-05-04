@@ -129,14 +129,14 @@ while(1):
         rsi = TC.get_RSI(close)
         if ((rsi[0] >= 85 and rsi[1] >= 85) and (candles[0][0] > timeOut[symbol])):
             depth = depth_socket.get_live_depths(symbol=symbol)
-            trade = Trades(depth['b'][0][0], "SHORT", symbol, candles[0][0]) 
+            trade = Trades(depth['b'][-1][0], "SHORT", symbol, candles[0][0]) 
             print("{} RSI: {}, enter SHORT, entry: {}".format(symbol, rsi[0], trade.entry))
             trades.append(trade)
             cooldown[symbol] = candles[0][0]
             timeOut[symbol] = candles[0][0]
         elif ((rsi[0] <= 15 and rsi[1] <=15) and (candles[0][0] > timeOut[symbol])):
             depth = depth_socket.get_live_depths(symbol=symbol)
-            trade = Trades(depth['a'][0][0], "LONG", symbol, candles[0][0])
+            trade = Trades(depth['a'][-1][0], "LONG", symbol, candles[0][0])
             print("{} RSI: {}, enter LONG, entry: {}".format(symbol, rsi[0], trade.entry))
             trades.append(trade)
             cooldown[symbol] = candles[0][0]
@@ -145,10 +145,10 @@ while(1):
             depth = depth_socket.get_live_depths(symbol=symbol)
             for trade in trades:
                 if (trade.symbol == symbol and trade.side == "SHORT"):
-                    trade.forceClose(depth['a'][0][0])
+                    trade.forceClose(depth['a'][-1][0])
         elif (rsi[1] >= 35 and (cooldown[symbol] > 0)):
             depth = depth_socket.get_live_depths(symbol=symbol)
             for trade in trades:
                 if (trade.symbol == symbol and trade.side == "LONG"):
-                    trade.forceClose(depth['b'][0][0])
+                    trade.forceClose(depth['b'][-1][0])
     time.sleep(0.1)
