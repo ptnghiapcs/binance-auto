@@ -11,7 +11,7 @@ def createTP(symbol, side, amount, time, tp):
     order["reduceOnly"] = "true"
     order["timestamp"] = time
     order["stopPrice"] = tp
-
+    return order
 
 def createSL(symbol, side, amount, time, sl):
     order={}
@@ -25,6 +25,21 @@ def createSL(symbol, side, amount, time, sl):
     order["reduceOnly"] = "true"
     order["timestamp"] = time
     order["stopPrice"] = sl
+    return order
+
+def openPosition(symbol, side, amount, time, price):
+    order={}
+    order["symbol"] = symbol
+    order["quantity"] = amount
+    order["price"] = price
+    order["timeInForce"] = "GTC"
+    if (side == "LONG"):
+        order["side"] = "SELL"
+    else:
+        order["side"] = "BUY"
+    order["TYPE"] = "LIMIT"
+    order["timestamp"] = time
+    return order
 
 
 # symbol 	STRING 	YES 	
