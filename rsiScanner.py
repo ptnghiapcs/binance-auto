@@ -19,7 +19,7 @@ loadedSymbols = json.load(symbolFile)
 SYMBOL_LIST = []
 
 SYMBOL_LIST = [symbol["symbol"] for symbol in loadedSymbols]
-KLINE_NAMES = [sym.lower() + "@kline_1m" for sym in SYMBOL_LIST]
+KLINE_NAMES = [sym.lower() + "@kline_5m" for sym in SYMBOL_LIST]
 DEPTH_NAMES = [sym.lower() + "@depth10@100ms" for sym in SYMBOL_LIST]
 MARK_NAMES =  [sym.lower() + "@markPrice@1s" for sym in SYMBOL_LIST]
 
@@ -127,14 +127,14 @@ while(1):
         candles = data[symbol]
         close = [candle[4] for candle in candles]
         rsi = TC.get_RSI(close)
-        if ((rsi[0] >= 85 and rsi[1] >= 85) and (candles[0][0] > timeOut[symbol])):
+        if ((rsi[0] >= 88 and rsi[1] >= 85) and (candles[0][0] > timeOut[symbol])):
             depth = depth_socket.get_live_depths(symbol=symbol)
             trade = Trades(depth['b'][-1][0], "SHORT", symbol, candles[0][0]) 
             print("{} RSI: {}, enter SHORT, entry: {}".format(symbol, rsi[0], trade.entry))
             trades.append(trade)
             cooldown[symbol] = candles[0][0]
             timeOut[symbol] = candles[0][0]
-        elif ((rsi[0] <= 15 and rsi[1] <=15) and (candles[0][0] > timeOut[symbol])):
+        elif ((rsi[0] <= 12 and rsi[1] <=15) and (candles[0][0] > timeOut[symbol])):
             depth = depth_socket.get_live_depths(symbol=symbol)
             trade = Trades(depth['a'][-1][0], "LONG", symbol, candles[0][0])
             print("{} RSI: {}, enter LONG, entry: {}".format(symbol, rsi[0], trade.entry))

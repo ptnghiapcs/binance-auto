@@ -628,6 +628,8 @@ class Binance_SOCK:
     def _update_depth(self, data):
         live_depth_data = formatter.format_depth(data, 'SOCK')
 
+        lastUpdate = live_depth_data['a'][0][0]
+
         for lask in live_depth_data['a']:
             if lask[1] in self.book_data[data['s']]['a']:
                 if lask[2] == 0.0:
@@ -650,18 +652,23 @@ class Binance_SOCK:
 
             self.book_data[data['s']]['b'].update({lbid[1]:[lbid[0],lbid[2]]})
 
+
         all_ask_prices = list(self.book_data[data['s']]['a'].keys())
-        all_ask_prices.sort()
-        if len(all_ask_prices) > self.BASE_DEPTH_LIMIT+1:
-            all_ask_prices_to_cut = all_ask_prices[self.BASE_DEPTH_LIMIT:]
+        if (len(all_ask_prices) > self.BASE_CANDLE_LIMIT):
+            all_ask_prices_to_cut = []
+            for aPrice in all_ask_prices:
+                if (self.book_data[data['s']]['a'][aPrice][0] < lastUpdate):
+                    all_ask_prices_to_cut.append(aPrice)
             for aPrice in all_ask_prices_to_cut:
                 if aPrice in self.book_data[data['s']]['a']:
                     del self.book_data[data['s']]['a'][aPrice]
 
         all_bid_prices = list(self.book_data[data['s']]['b'].keys())
-        all_bid_prices.sort(reverse=True)
-        if len(all_bid_prices) > self.BASE_DEPTH_LIMIT + 1:
-            all_bid_prices_to_cut = all_bid_prices[self.BASE_DEPTH_LIMIT:]
+        if (len(all_bid_prices) > self.BASE_CANDLE_LIMIT):
+            all_bid_prices_to_cut = []
+            for bPrice in all_bid_prices:
+                if (self.book_data[data['s']]['b'][bPrice][0] < lastUpdate):
+                    all_bid_prices_to_cut.append(bPrice)
             for bPrice in all_bid_prices_to_cut:
                 if bPrice in self.book_data[data['s']]['b']:
                     del self.book_data[data['s']]['b'][bPrice]
