@@ -6,7 +6,7 @@ import technical_indicators as TC
 import json
 import math
 import datetime
-
+from orderCreator import sendOrder
 
 try:
     symbolFile = open("symbols.json", "r")
@@ -16,6 +16,14 @@ except IOError:
 
 loadedSymbols = json.load(symbolFile)
 
+LEVERAGE = {}
+STEP_SIZE = {}
+for symbol in loadedSymbols:
+    LEVERAGE[symbol["symbol"]] = symbol["leverage"]
+    STEP_SIZE[symbol["symbol"]] = symbol["stepSize"]
+
+balance = 15
+
 SYMBOL_LIST = []
 
 SYMBOL_LIST = [symbol["symbol"] for symbol in loadedSymbols]
@@ -24,7 +32,8 @@ DEPTH_NAMES = [sym.lower() + "@depth10@100ms" for sym in SYMBOL_LIST]
 MARK_NAMES =  [sym.lower() + "@markPrice@1s" for sym in SYMBOL_LIST]
 
 candle_socket = socket_master.Binance_SOCK(KLINE_NAMES, isFuture=True)
-rest_api = rest_master.Binance_REST()
+rest_api = rest_master.Binance_REST(private_key="M3rVcyKwP1xNhQRTHJy1I6RmHqK4OHwFnbtGYsW18F4IorXavoSWCpGa3JmV3KNh",
+                                    public_key="8fKELP10OY69D8Sq47DjnQv9GHrjjpgRsVXDt9p15O5k36r06aEGZfKinxKbv1ls")
 
 
 print("Loading initial candles...")
@@ -57,6 +66,13 @@ class Trades:
         else:
             self.sl = entry * 1.05
             self.tp = entry * 0.99
+
+        global balance
+        amount =  balance / entry
+        self.amount = amount
+        global rest_api
+        sendOrder(symbol, side, amount, entry, rest_api,sl=self.sl, tp=self.tp)
+        
     def checkClose(self, currPrice):
         if (self.side == "LONG"):
             if (currPrice >= self.tp):
@@ -109,6 +125,7 @@ for symbol in SYMBOL_LIST:
 while(1):
     data = candle_socket.get_live_candles()
     markPrice = mark_socket.get_live_markPrice()
+    
 
     newTrades = []
 
@@ -143,12 +160,18 @@ while(1):
             timeOut[symbol] = candles[0][0]
         elif (rsi[1] <= 65 and (cooldown[symbol] > 0)):
             depth = depth_socket.get_live_depths(symbol=symbol)
+            total = 0
             for trade in trades:
                 if (trade.symbol == symbol and trade.side == "SHORT"):
                     trade.forceClose(depth['a'][-1][0])
+                    total+=trade.amount
+            sendOrder(symbol, "LONG",total, depth['a'][-1][0], rest_api)
         elif (rsi[1] >= 35 and (cooldown[symbol] > 0)):
             depth = depth_socket.get_live_depths(symbol=symbol)
+            total = 0
             for trade in trades:
                 if (trade.symbol == symbol and trade.side == "LONG"):
                     trade.forceClose(depth['b'][-1][0])
+                    total+=trade.amount
+            sendOrder(symbol, "SHORT",total, depth['b'][-1][0], rest_api)
     time.sleep(0.1)

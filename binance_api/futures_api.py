@@ -210,7 +210,7 @@ class post_multiple_orders:
             'O':['recvWindow']}
     method = 'POST'
     endpoint = '/fapi/v1/batchOrders'
-    security_type = 'TRADE'
+    security_type = 'TRADE' 
     base = 'https://fapi.binance.com'
 
 class get_future_24h_ticker:
@@ -234,3 +234,15 @@ class get_mark_price:
     endpoint = '/fapi/v1/premiumIndex'
     base = 'https://fapi.binance.com'
     security_type = 'None'
+class change_initial_lev :
+    params = {'R': ['symbol', 'leverage', 'timestamp']}
+    method = 'POST'
+    endpoint = '/fapi/v1/leverage'
+    base = 'https://fapi.binance.com'
+    security_type = 'TRADE'
+class cancel_all_order:
+    params = {'R': ['symbol', 'timestamp']}
+    method = 'DELETE'
+    endpoint = '/fapi/v1/allOpenOrders'
+    base = 'https://fapi.binance.com'
+    security_type = 'TRADE'

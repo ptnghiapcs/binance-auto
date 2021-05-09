@@ -133,6 +133,12 @@ class Binance_REST:
         return(self.param_check(futures_api.get_future_depth, kwargs))
     def get_mark_price(self, **kwargs):
         return(self.param_check(futures_api.get_mark_price, kwargs))
+    def send_batchOrder(self, **kwargs):
+        return(self.param_check(futures_api.post_multiple_orders, kwargs))
+    def change_leverage(self, **kwargs):
+        return(self.param_check(futures_api.change_initial_lev, kwargs))
+    def cancel_allOrder(self, **kwargs):
+        return(self.param_check(futures_api.cancel_all_order, kwargs))
 
     ## ------------------ [MARGIN_EXCLUSIVE] ------------------ ##
     def margin_transfer(self, **kwargs):
@@ -520,6 +526,8 @@ class Binance_REST:
 
     def api_request(self, method, path, params, req_KEY, req_SIG, base_url):
         params_encoded = urlencode(sorted(params.items()))
+        params_encoded = params_encoded.replace('%27', '%22')
+        params_encoded = params_encoded.replace("+","")
 
         if req_SIG:
             query = '{0}&timestamp={1}'.format(params_encoded, int(time.time()*1000))
