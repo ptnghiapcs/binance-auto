@@ -14,9 +14,11 @@ result = rest_api.get_leverage_brackets(timestamp=currMili)
 exchanage_info = rest_api.api_request("GET", "/fapi/v1/exchangeInfo", {}, False, False, 'https://fapi.binance.com')
 
 temp = {}
+tickSize = {}
 
 for symbol in exchanage_info["symbols"]:
     temp[symbol["symbol"]] = float(symbol["filters"][1]["stepSize"])
+    tickSize[symbol["symbol"]] = float(symbol["filters"][0]["tickSize"])
 
 savedSymbol = []
 file = open("symbols.json", "w")
@@ -31,6 +33,7 @@ for i, symbolInfo in enumerate(result):
     symbol["symbol"] = symbolInfo["symbol"]
     symbol["leverage"] = symbolInfo["brackets"][0]["initialLeverage"]
     symbol["stepSize"] = temp[symbol["symbol"]]
+    symbol["tickSize"] = tickSize[symbol["symbol"]]
     savedSymbol.append(symbol)
     print("Symbol: {}, Leverage: {}, MaxNotion: {}".format(symbolInfo["symbol"], symbolInfo["brackets"][0]["initialLeverage"], symbolInfo["brackets"][0]["notionalCap"]))
 

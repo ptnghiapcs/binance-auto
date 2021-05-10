@@ -18,9 +18,11 @@ loadedSymbols = json.load(symbolFile)
 
 LEVERAGE = {}
 STEP_SIZE = {}
+TICK_SIZE = {}
 for symbol in loadedSymbols:
     LEVERAGE[symbol["symbol"]] = symbol["leverage"]
     STEP_SIZE[symbol["symbol"]] = symbol["stepSize"]
+    TICK_SIZE[symbol["symbol"]] = symbol["tickSize"]
 
 balance = 15
 
@@ -67,8 +69,17 @@ class Trades:
             self.sl = entry * 1.05
             self.tp = entry * 0.99
 
+        global TICK_SIZE
+        temp = round(self.sl / TICK_SIZE[symbol])
+        self.sl = temp * TICK_SIZE[symbol]
+        temp = round(self.tp / TICK_SIZE[symbol])
+        self.tp = temp * TICK_SIZE[symbol]
+
         global balance
-        amount =  balance / entry
+        global STEP_SIZE
+        temp =  balance / entry
+        roundedTemp = round(temp / STEP_SIZE[symbol])
+        amount = STEP_SIZE[symbol] * roundedTemp
         self.amount = amount
         global rest_api
         sendOrder(symbol, side, amount, entry, rest_api,sl=self.sl, tp=self.tp)
@@ -147,14 +158,14 @@ while(1):
         if ((rsi[0] >= 88 and rsi[1] >= 85) and (candles[0][0] > timeOut[symbol])):
             depth = depth_socket.get_live_depths(symbol=symbol)
             trade = Trades(depth['b'][-1][0], "SHORT", symbol, candles[0][0]) 
-            print("{} RSI: {}, enter SHORT, entry: {}".format(symbol, rsi[0], trade.entry))
+            print("{} RSI: {}, enter SHORT, entry: {}, sl: {}, tp: {}".format(symbol, rsi[0], trade.entry, trade.sl, trade.tp))
             trades.append(trade)
             cooldown[symbol] = candles[0][0]
             timeOut[symbol] = candles[0][0]
         elif ((rsi[0] <= 12 and rsi[1] <=15) and (candles[0][0] > timeOut[symbol])):
             depth = depth_socket.get_live_depths(symbol=symbol)
             trade = Trades(depth['a'][-1][0], "LONG", symbol, candles[0][0])
-            print("{} RSI: {}, enter LONG, entry: {}".format(symbol, rsi[0], trade.entry))
+            print("{} RSI: {}, enter LONG, entry: {}, sl: {}, tp: {}".format(symbol, rsi[0], trade.entry, trade.sl, trade.tp))
             trades.append(trade)
             cooldown[symbol] = candles[0][0]
             timeOut[symbol] = candles[0][0]
@@ -165,7 +176,8 @@ while(1):
                 if (trade.symbol == symbol and trade.side == "SHORT"):
                     trade.forceClose(depth['a'][-1][0])
                     total+=trade.amount
-            sendOrder(symbol, "LONG",total, depth['a'][-1][0], rest_api)
+            if (total > 0) :
+                sendOrder(symbol, "LONG",total, depth['a'][-1][0], rest_api)
         elif (rsi[1] >= 35 and (cooldown[symbol] > 0)):
             depth = depth_socket.get_live_depths(symbol=symbol)
             total = 0
@@ -173,5 +185,6 @@ while(1):
                 if (trade.symbol == symbol and trade.side == "LONG"):
                     trade.forceClose(depth['b'][-1][0])
                     total+=trade.amount
-            sendOrder(symbol, "SHORT",total, depth['b'][-1][0], rest_api)
+            if(total > 0):
+                sendOrder(symbol, "SHORT",total, depth['b'][-1][0], rest_api)
     time.sleep(0.1)
