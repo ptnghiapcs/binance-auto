@@ -24,13 +24,13 @@ for symbol in loadedSymbols:
     STEP_SIZE[symbol["symbol"]] = symbol["stepSize"]
     TICK_SIZE[symbol["symbol"]] = symbol["tickSize"]
 
-balance = 15
+balance = 50
 
 SYMBOL_LIST = []
 
 SYMBOL_LIST = [symbol["symbol"] for symbol in loadedSymbols]
 KLINE_NAMES = [sym.lower() + "@kline_5m" for sym in SYMBOL_LIST]
-DEPTH_NAMES = [sym.lower() + "@depth10@100ms" for sym in SYMBOL_LIST]
+DEPTH_NAMES = [sym.lower() + "@bookTicker" for sym in SYMBOL_LIST]
 MARK_NAMES =  [sym.lower() + "@markPrice@1s" for sym in SYMBOL_LIST]
 
 candle_socket = socket_master.Binance_SOCK(KLINE_NAMES, isFuture=True)
@@ -38,6 +38,8 @@ rest_api = rest_master.Binance_REST(private_key="M3rVcyKwP1xNhQRTHJy1I6RmHqK4OHw
                                     public_key="8fKELP10OY69D8Sq47DjnQv9GHrjjpgRsVXDt9p15O5k36r06aEGZfKinxKbv1ls")
 
 
+depth_socket = socket_master.Binance_SOCK(DEPTH_NAMES, isFuture=True)
+depth_socket.start()
 print("Loading initial candles...")
 start_time = time.time()
 candle_socket.set_live_and_historic_combo(rest_api)
@@ -45,11 +47,10 @@ print("Loading finished in {:.4f} seconds , waiting for update".format(time.time
 
 
 
-depth_socket = socket_master.Binance_SOCK(DEPTH_NAMES, isFuture=True)
+
 mark_socket = socket_master.Binance_SOCK(MARK_NAMES, isFuture=True)
 print("Loading initial depth...")
 start_time = time.time()
-depth_socket.set_live_and_historic_depth(rest_api)
 mark_socket.set_live_and_historic_markPrice(rest_api)
 print("Loading finished in {:.4f} seconds , waiting for update".format(time.time() - start_time))
 
@@ -124,7 +125,6 @@ class Trades:
 
 trades = []
 candle_socket.start()
-depth_socket.start()
 mark_socket.start()
 cooldown = {}
 timeOut = {}
@@ -132,6 +132,8 @@ timeOut = {}
 for symbol in SYMBOL_LIST:
     cooldown[symbol] = 0
     timeOut[symbol] = 0
+
+time.sleep(1)
 
 while(1):
     data = candle_socket.get_live_candles()
@@ -156,34 +158,34 @@ while(1):
         close = [candle[4] for candle in candles]
         rsi = TC.get_RSI(close)
         if ((rsi[0] >= 88 and rsi[1] >= 85) and (candles[0][0] > timeOut[symbol])):
-            depth = depth_socket.get_live_depths(symbol=symbol)
-            trade = Trades(depth['b'][-1][0], "SHORT", symbol, candles[0][0]) 
+            bid = depth_socket.get_best_bid(symbol)
+            trade = Trades(bid, "SHORT", symbol, candles[0][0]) 
             print("{} RSI: {}, enter SHORT, entry: {}, sl: {}, tp: {}".format(symbol, rsi[0], trade.entry, trade.sl, trade.tp))
             trades.append(trade)
             cooldown[symbol] = candles[0][0]
             timeOut[symbol] = candles[0][0]
         elif ((rsi[0] <= 12 and rsi[1] <=15) and (candles[0][0] > timeOut[symbol])):
-            depth = depth_socket.get_live_depths(symbol=symbol)
-            trade = Trades(depth['a'][-1][0], "LONG", symbol, candles[0][0])
+            ask = depth_socket.get_best_ask(symbol)
+            trade = Trades(ask, "LONG", symbol, candles[0][0])
             print("{} RSI: {}, enter LONG, entry: {}, sl: {}, tp: {}".format(symbol, rsi[0], trade.entry, trade.sl, trade.tp))
             trades.append(trade)
             cooldown[symbol] = candles[0][0]
             timeOut[symbol] = candles[0][0]
         elif (rsi[1] <= 65 and (cooldown[symbol] > 0)):
-            depth = depth_socket.get_live_depths(symbol=symbol)
+            ask = depth_socket.get_best_ask(symbol)
             total = 0
             for trade in trades:
                 if (trade.symbol == symbol and trade.side == "SHORT"):
-                    trade.forceClose(depth['a'][-1][0])
+                    trade.forceClose(ask)
                     total+=trade.amount
             if (total > 0) :
                 sendOrder(symbol, "LONG",total, depth['a'][-1][0], rest_api)
         elif (rsi[1] >= 35 and (cooldown[symbol] > 0)):
-            depth = depth_socket.get_live_depths(symbol=symbol)
+            bid = depth_socket.get_best_bid(symbol)
             total = 0
             for trade in trades:
                 if (trade.symbol == symbol and trade.side == "LONG"):
-                    trade.forceClose(depth['b'][-1][0])
+                    trade.forceClose(bid)
                     total+=trade.amount
             if(total > 0):
                 sendOrder(symbol, "SHORT",total, depth['b'][-1][0], rest_api)

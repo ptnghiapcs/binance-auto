@@ -46,6 +46,8 @@ class Binance_SOCK:
         self.book_data              = {}
         self.ticker_data            = {}
         self.mark_price             = {}
+        self.best_ask               = {}
+        self.best_bid               = {}
         self.reading_books          = False
 
         self.userDataStream_added   = False
@@ -124,6 +126,10 @@ class Binance_SOCK:
         if symbol:
             return (self.mark_price[symbol])
         return (self.mark_price)
+    def get_best_ask(self,symbol):
+        return self.best_ask[symbol]
+    def get_best_bid(self,symbol):
+        return self.best_bid[symbol]
 
     ## ------------------ [MANUAL_CALLS_EXCLUSIVE] ------------------ ##
     def subscribe_streams(self, **kwargs):
@@ -520,6 +526,10 @@ class Binance_SOCK:
                     elif data['e'] == 'markPriceUpdate':
                         formatted = formatter.format_markPrice(data, 'SOCK')
                         self.mark_price[data['s']] = formatted
+                    elif data['e'] == 'bookTicker':
+                        self.best_ask[data['s']] = float(data['a'])
+                        self.best_bid[data['s']] = float(data['b'])
+
                     else:
                         if 'outboundAccountInfo' == data['e']:
                             self.socketBuffer.update({data['e']:data})
