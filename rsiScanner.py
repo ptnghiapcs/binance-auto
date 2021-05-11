@@ -133,7 +133,6 @@ for symbol in SYMBOL_LIST:
     cooldown[symbol] = 0
     timeOut[symbol] = 0
 
-time.sleep(1)
 
 while(1):
     data = candle_socket.get_live_candles()
@@ -160,14 +159,14 @@ while(1):
         if ((rsi[0] >= 88 and rsi[1] >= 85) and (candles[0][0] > timeOut[symbol])):
             bid = depth_socket.get_best_bid(symbol)
             trade = Trades(bid, "SHORT", symbol, candles[0][0]) 
-            print("{} RSI: {}, enter SHORT, entry: {}, sl: {}, tp: {}".format(symbol, rsi[0], trade.entry, trade.sl, trade.tp))
+            print("{} RSI: {}, enter SHORT, entry: {}, sl: {}, tp: {}, amount {}".format(symbol, rsi[0], trade.entry, trade.sl, trade.tp, trade.amount))
             trades.append(trade)
             cooldown[symbol] = candles[0][0]
             timeOut[symbol] = candles[0][0]
         elif ((rsi[0] <= 12 and rsi[1] <=15) and (candles[0][0] > timeOut[symbol])):
             ask = depth_socket.get_best_ask(symbol)
             trade = Trades(ask, "LONG", symbol, candles[0][0])
-            print("{} RSI: {}, enter LONG, entry: {}, sl: {}, tp: {}".format(symbol, rsi[0], trade.entry, trade.sl, trade.tp))
+            print("{} RSI: {}, enter LONG, entry: {}, sl: {}, tp: {}, amount {}".format(symbol, rsi[0], trade.entry, trade.sl, trade.tp, trade.amount))
             trades.append(trade)
             cooldown[symbol] = candles[0][0]
             timeOut[symbol] = candles[0][0]
@@ -179,7 +178,7 @@ while(1):
                     trade.forceClose(ask)
                     total+=trade.amount
             if (total > 0) :
-                sendOrder(symbol, "LONG",total, depth['a'][-1][0], rest_api)
+                sendOrder(symbol, "LONG",total, ask, rest_api)
         elif (rsi[1] >= 35 and (cooldown[symbol] > 0)):
             bid = depth_socket.get_best_bid(symbol)
             total = 0
@@ -188,5 +187,5 @@ while(1):
                     trade.forceClose(bid)
                     total+=trade.amount
             if(total > 0):
-                sendOrder(symbol, "SHORT",total, depth['b'][-1][0], rest_api)
+                sendOrder(symbol, "SHORT",total, bid, rest_api)
     time.sleep(0.1)

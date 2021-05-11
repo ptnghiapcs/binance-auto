@@ -188,7 +188,6 @@ class Binance_SOCK:
     def set_live_and_historic_combo(self, rest_api):
         if not(self.live_and_historic_data):
             tasks = []
-            loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             for stream in self.stream_names:
                 symbol = stream.split('@')[0].upper()
@@ -526,9 +525,7 @@ class Binance_SOCK:
                     elif data['e'] == 'markPriceUpdate':
                         formatted = formatter.format_markPrice(data, 'SOCK')
                         self.mark_price[data['s']] = formatted
-                    elif data['e'] == 'bookTicker':
-                        self.best_ask[data['s']] = float(data['a'])
-                        self.best_bid[data['s']] = float(data['b'])
+                    
 
                     else:
                         if 'outboundAccountInfo' == data['e']:
@@ -546,7 +543,11 @@ class Binance_SOCK:
                                     print('section 1')
                                     print(raw_data)
                 else:
-                    self.socketBuffer.update({data['e']:data})
+                    if data['e'] == 'bookTicker':
+                        self.best_ask[data['s']] = float(data['a'])
+                        self.best_bid[data['s']] = float(data['b'])
+                    else:
+                        self.socketBuffer.update({data['e']:data})
 
 
 

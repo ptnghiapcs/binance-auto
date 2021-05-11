@@ -19,6 +19,7 @@ def createTP(symbol, side, amount, tp):
     order["type"] = "TAKE_PROFIT_MARKET"
     order["reduceOnly"] = "true"
     order["stopPrice"] = tp
+    order["workingType"] = "MARK_PRICE"
     currMili = round(time.time() * 1000)
     order["timestamp"] = currMili
     return order
@@ -34,6 +35,7 @@ def createSL(symbol, side, amount, sl):
     order["type"] = "STOP_MARKET"
     order["reduceOnly"] = "true"
     order["stopPrice"] = sl
+    order["workingType"] = "MARK_PRICE"
     currMili = round(time.time() * 1000)
     order["timestamp"] = currMili
     return order
