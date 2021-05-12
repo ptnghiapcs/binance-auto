@@ -17,8 +17,10 @@ temp = {}
 tickSize = {}
 
 for symbol in exchanage_info["symbols"]:
-    temp[symbol["symbol"]] = float(symbol["filters"][1]["stepSize"])
-    tickSize[symbol["symbol"]] = float(symbol["filters"][0]["tickSize"])
+    one = symbol["filters"][1]["stepSize"].find('1')
+    temp[symbol["symbol"]] = symbol["filters"][1]["stepSize"][:(one + 1)]
+    one = symbol["filters"][0]["tickSize"].find('1')
+    tickSize[symbol["symbol"]] = symbol["filters"][0]["tickSize"][:(one+1)]
 
 savedSymbol = []
 file = open("symbols.json", "w")

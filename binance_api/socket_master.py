@@ -188,6 +188,7 @@ class Binance_SOCK:
     def set_live_and_historic_combo(self, rest_api):
         if not(self.live_and_historic_data):
             tasks = []
+            loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             for stream in self.stream_names:
                 symbol = stream.split('@')[0].upper()

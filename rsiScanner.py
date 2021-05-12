@@ -21,8 +21,14 @@ STEP_SIZE = {}
 TICK_SIZE = {}
 for symbol in loadedSymbols:
     LEVERAGE[symbol["symbol"]] = symbol["leverage"]
-    STEP_SIZE[symbol["symbol"]] = symbol["stepSize"]
-    TICK_SIZE[symbol["symbol"]] = symbol["tickSize"]
+    if ('.' in symbol["stepSize"]):
+        STEP_SIZE[symbol["symbol"]] = len(symbol["stepSize"].split('.')[1])
+    else:
+        STEP_SIZE[symbol["symbol"]] = 0
+    if ('.' in symbol["tickSize"]):
+        TICK_SIZE[symbol["symbol"]] = len(symbol["tickSize"].split('.')[1])
+    else:
+        TICK_SIZE[symbol["symbol"]] = 0
 
 balance = 50
 
@@ -71,17 +77,12 @@ class Trades:
             self.tp = entry * 0.99
 
         global TICK_SIZE
-        temp = round(self.sl / TICK_SIZE[symbol])
-        self.sl = temp * TICK_SIZE[symbol]
-        temp = round(self.tp / TICK_SIZE[symbol])
-        self.tp = temp * TICK_SIZE[symbol]
+        self.sl = round(self.sl, TICK_SIZE[symbol])
+        self.tp = round(self.tp, TICK_SIZE[symbol])
 
         global balance
         global STEP_SIZE
-        temp =  balance / entry
-        roundedTemp = round(temp / STEP_SIZE[symbol])
-        amount = STEP_SIZE[symbol] * roundedTemp
-        self.amount = amount
+        self.amount =  round(balance / entry, STEP_SIZE[symbol])
         global rest_api
         sendOrder(symbol, side, amount, entry, rest_api,sl=self.sl, tp=self.tp)
         
@@ -178,6 +179,7 @@ while(1):
                     trade.forceClose(ask)
                     total+=trade.amount
             if (total > 0) :
+                total = round(total, STEP_SIZE[symbol])
                 sendOrder(symbol, "LONG",total, ask, rest_api)
         elif (rsi[1] >= 35 and (cooldown[symbol] > 0)):
             bid = depth_socket.get_best_bid(symbol)
@@ -187,5 +189,6 @@ while(1):
                     trade.forceClose(bid)
                     total+=trade.amount
             if(total > 0):
+                total = round(total, STEP_SIZE[symbol])
                 sendOrder(symbol, "SHORT",total, bid, rest_api)
     time.sleep(0.1)
