@@ -84,7 +84,7 @@ class Trades:
         global STEP_SIZE
         self.amount =  round(balance / entry, STEP_SIZE[symbol])
         global rest_api
-        sendOrder(symbol, side, amount, entry, rest_api,sl=self.sl, tp=self.tp)
+        sendOrder(symbol, side, self.amount, entry, rest_api,sl=self.sl, tp=self.tp)
         
     def checkClose(self, currPrice):
         if (self.side == "LONG"):
@@ -157,14 +157,14 @@ while(1):
         candles = data[symbol]
         close = [candle[4] for candle in candles]
         rsi = TC.get_RSI(close)
-        if ((rsi[0] >= 88 and rsi[1] >= 85) and (candles[0][0] > timeOut[symbol])):
+        if ((rsi[0] >= 90 and rsi[1] >= 85) and (candles[0][0] > timeOut[symbol])):
             bid = depth_socket.get_best_bid(symbol)
             trade = Trades(bid, "SHORT", symbol, candles[0][0]) 
             print("{} RSI: {}, enter SHORT, entry: {}, sl: {}, tp: {}, amount {}".format(symbol, rsi[0], trade.entry, trade.sl, trade.tp, trade.amount))
             trades.append(trade)
             cooldown[symbol] = candles[0][0]
             timeOut[symbol] = candles[0][0]
-        elif ((rsi[0] <= 12 and rsi[1] <=15) and (candles[0][0] > timeOut[symbol])):
+        elif ((rsi[0] <= 10 and rsi[1] <=15) and (candles[0][0] > timeOut[symbol])):
             ask = depth_socket.get_best_ask(symbol)
             trade = Trades(ask, "LONG", symbol, candles[0][0])
             print("{} RSI: {}, enter LONG, entry: {}, sl: {}, tp: {}, amount {}".format(symbol, rsi[0], trade.entry, trade.sl, trade.tp, trade.amount))

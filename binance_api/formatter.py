@@ -4,6 +4,9 @@ def format_candles(raw_data, candleType):
     Candle format =
         [Open_Time, Open, High, Low, Close, Volume, Close_Time, Quote_Asset_Volume, Num_trades]
     '''
+
+    #print(raw_data)
+
     if candleType == 'REST':
         format_data = [
             [int(c[0]),
