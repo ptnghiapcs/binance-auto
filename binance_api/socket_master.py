@@ -90,24 +90,25 @@ class Binance_SOCK:
     ## ------------------ [DATA_ACCESS_ENDPOINT] ------------------ ##
     def get_live_depths(self, symbol=None):
         got_books = False
-        return_books = {}
+        return_books = self.book_data
 
-        while not(got_books):
-            got_books = True
-            for key in self.book_data:
-                try:
-                    ask_Price_List = self._orderbook_sorter_algo(copy.deepcopy(self.book_data[key]['a']), 'ask')
-                    bid_Price_List = self._orderbook_sorter_algo(copy.deepcopy(self.book_data[key]['b']), 'bid')
-                    return_books.update({key:{'a':ask_Price_List, 'b':bid_Price_List}})
-                except RuntimeError as error:
-                    if error == 'dictionary changed size during iteration':
-                        print('dodged book error')
-                    got_books = False
-                    break
+        # while not(got_books):
+        #     got_books = True
+        #     for key in self.book_data:
+        #         try:
+        #             ask_Price_List = self._orderbook_sorter_algo(copy.deepcopy(self.book_data[key]['a']), 'ask')
+        #             bid_Price_List = self._orderbook_sorter_algo(copy.deepcopy(self.book_data[key]['b']), 'bid')
+        #             return_books.update({key:{'a':ask_Price_List, 'b':bid_Price_List}})
+        #         except RuntimeError as error:
+        #             if error == 'dictionary changed size during iteration':
+        #                 print('dodged book error')
+        #             got_books = False
+        #             break
 
         if symbol:
             if not symbol in return_books:
-                print(return_books)
+                #print(return_books)
+                pass
             return(return_books[symbol])
 
         return(return_books)
@@ -640,50 +641,55 @@ class Binance_SOCK:
     def _update_depth(self, data):
         live_depth_data = formatter.format_depth(data, 'SOCK')
 
+        
+
         lastUpdate = live_depth_data['a'][0][0]
 
-        for lask in live_depth_data['a']:
-            if lask[1] in self.book_data[data['s']]['a']:
-                if lask[2] == 0.0:
-                    del self.book_data[data['s']]['a'][lask[1]]
-                    continue
+        symbol = data['s']
 
-                if self.book_data[data['s']]['a'][lask[1]][0] >= lask[0]:
-                    continue
+        self.book_data[symbol] = live_depth_data
+        # for lask in live_depth_data['a']:
+        #     if lask[1] in self.book_data[symbol]['a']:
+        #         if lask[2] == 0.0:
+        #             del self.book_data[symbol]['a'][lask[1]]
+        #             continue
 
-            self.book_data[data['s']]['a'].update({lask[1]:[lask[0],lask[2]]})
+        #         if self.book_data[symbol]['a'][lask[1]][0] >= lask[0]:
+        #             continue
 
-        for lbid in live_depth_data['b']:
-            if lbid[1] in self.book_data[data['s']]['b']:
-                if lbid[2] == 0.0:
-                    del self.book_data[data['s']]['b'][lbid[1]]
-                    continue
+        #     self.book_data[symbol]['a'].update({lask[1]:[lask[0],lask[2]]})
 
-                if self.book_data[data['s']]['b'][lbid[1]][0] >= lbid[0]:
-                    continue
+        # for lbid in live_depth_data['b']:
+        #     if lbid[1] in self.book_data[symbol]['b']:
+        #         if lbid[2] == 0.0:
+        #             del self.book_data[symbol]['b'][lbid[1]]
+        #             continue
 
-            self.book_data[data['s']]['b'].update({lbid[1]:[lbid[0],lbid[2]]})
+        #         if self.book_data[symbol]['b'][lbid[1]][0] >= lbid[0]:
+        #             continue
+
+        #     self.book_data[symbol]['b'].update({lbid[1]:[lbid[0],lbid[2]]})
 
 
-        all_ask_prices = list(self.book_data[data['s']]['a'].keys())
-        if (len(all_ask_prices) > self.BASE_CANDLE_LIMIT):
-            all_ask_prices_to_cut = []
-            for aPrice in all_ask_prices:
-                if (self.book_data[data['s']]['a'][aPrice][0] < lastUpdate):
-                    all_ask_prices_to_cut.append(aPrice)
-            for aPrice in all_ask_prices_to_cut:
-                if aPrice in self.book_data[data['s']]['a']:
-                    del self.book_data[data['s']]['a'][aPrice]
+        # all_ask_prices = list(self.book_data[data['s']]['a'].keys())
+        # if (len(all_ask_prices) > self.BASE_CANDLE_LIMIT):
+        #     all_ask_prices_to_cut = []
+        #     for aPrice in all_ask_prices:
+        #         if (self.book_data[symbol]['a'][aPrice][0] < lastUpdate):
+        #             all_ask_prices_to_cut.append(aPrice)
+        #     for aPrice in all_ask_prices_to_cut:
+        #         if aPrice in self.book_data[symbol]['a']:
+        #             del self.book_data[symbol]['a'][aPrice]
 
-        all_bid_prices = list(self.book_data[data['s']]['b'].keys())
-        if (len(all_bid_prices) > self.BASE_CANDLE_LIMIT):
-            all_bid_prices_to_cut = []
-            for bPrice in all_bid_prices:
-                if (self.book_data[data['s']]['b'][bPrice][0] < lastUpdate):
-                    all_bid_prices_to_cut.append(bPrice)
-            for bPrice in all_bid_prices_to_cut:
-                if bPrice in self.book_data[data['s']]['b']:
-                    del self.book_data[data['s']]['b'][bPrice]
+        # all_bid_prices = list(self.book_data[symbol]['b'].keys())
+        # if (len(all_bid_prices) > self.BASE_CANDLE_LIMIT):
+        #     all_bid_prices_to_cut = []
+        #     for bPrice in all_bid_prices:
+        #         if (self.book_data[symbol]['b'][bPrice][0] < lastUpdate):
+        #             all_bid_prices_to_cut.append(bPrice)
+        #     for bPrice in all_bid_prices_to_cut:
+        #         if bPrice in self.book_data[symbol]['b']:
+        #             del self.book_data[symbol]['b'][bPrice]
 
         
     def _orderbook_sorter_algo(self, books_dict_base, side):

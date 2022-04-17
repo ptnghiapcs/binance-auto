@@ -554,4 +554,5 @@ class Binance_REST:
 
         self.requests_made += 1
 
+        print(data)
         return(data)

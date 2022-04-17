@@ -2,8 +2,12 @@ from binance_api import rest_master
 import time
 import json
 
-rest_api = rest_master.Binance_REST(private_key="M3rVcyKwP1xNhQRTHJy1I6RmHqK4OHwFnbtGYsW18F4IorXavoSWCpGa3JmV3KNh",
-                                    public_key="8fKELP10OY69D8Sq47DjnQv9GHrjjpgRsVXDt9p15O5k36r06aEGZfKinxKbv1ls")
+key_file = open("keys.json")
+keys = json.load(key_file)
+
+
+rest_api = rest_master.Binance_REST(private_key=keys["private"],
+                                    public_key=keys["public"])
             
 
 currMili = round(time.time() * 1000)

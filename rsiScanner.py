@@ -40,8 +40,12 @@ DEPTH_NAMES = [sym.lower() + "@bookTicker" for sym in SYMBOL_LIST]
 MARK_NAMES =  [sym.lower() + "@markPrice@1s" for sym in SYMBOL_LIST]
 
 candle_socket = socket_master.Binance_SOCK(KLINE_NAMES, isFuture=True)
-rest_api = rest_master.Binance_REST(private_key="M3rVcyKwP1xNhQRTHJy1I6RmHqK4OHwFnbtGYsW18F4IorXavoSWCpGa3JmV3KNh",
-                                    public_key="8fKELP10OY69D8Sq47DjnQv9GHrjjpgRsVXDt9p15O5k36r06aEGZfKinxKbv1ls")
+key_file = open("keys.json")
+keys = json.load(key_file)
+
+
+rest_api = rest_master.Binance_REST(private_key=keys["private"],
+                                    public_key=keys["public"])
 
 
 depth_socket = socket_master.Binance_SOCK(DEPTH_NAMES, isFuture=True)
